@@ -31,6 +31,7 @@ import { rotateCommand } from '../commands/rotate.js';
 import { agentCommand } from '../commands/agent.js';
 import { agentFixCommand } from '../commands/agent-fix.js';
 import { undoCommand } from '../commands/undo.js';
+import { shareCommand } from '../commands/share.js';
 import { shellCommand } from '../commands/shell.js';
 import { depsCommand } from '../commands/deps.js';
 import { scoreCommand } from '../commands/score.js';
@@ -216,6 +217,14 @@ program
   .option('--all', 'Revert every fix in the log instead of just the last one')
   .option('--dry-run', 'Show what would be reverted without writing anything')
   .action(undoCommand);
+
+// -----------------------------------------------------------------------------
+// SHARE COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('share [path]')
+  .description('Publish your latest scan report as a public URL (valid 7 days)')
+  .action(shareCommand);
 
 // -----------------------------------------------------------------------------
 // SHELL COMMAND

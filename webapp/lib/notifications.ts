@@ -394,3 +394,85 @@ export async function notifyGuardianBlocked(run: GuardianResult, reason: string)
     reason,
   }, run.orgId);
 }
+
+/* ── Weekly Score Trend Digest ────────────────────────── */
+
+export async function sendWeeklyDigests() {
+  const oneWeekAgo  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+  // Find users who have email notifications enabled and scanned in the last 2 weeks
+  const settings = await prisma.notificationSetting.findMany({
+    where: { emailOnComplete: true, emailDigest: { in: ['weekly', 'daily'] } },
+    select: { userId: true },
+  });
+
+  const userIds = settings.map(s => s.userId);
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, email: true, name: true },
+  });
+  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  for (const setting of settings) {
+    const user = userMap[setting.userId];
+    if (!user?.email) continue;
+
+    const [thisWeekScans, lastWeekScans] = await Promise.all([
+      prisma.scan.findMany({
+        where: { userId: user.id, status: 'done', createdAt: { gte: oneWeekAgo } },
+        orderBy: { createdAt: 'desc' },
+        select: { repo: true, score: true, grade: true, findings: true, createdAt: true },
+      }),
+      prisma.scan.findMany({
+        where: { userId: user.id, status: 'done', createdAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
+        orderBy: { createdAt: 'desc' },
+        select: { repo: true, score: true },
+      }),
+    ]);
+
+    if (thisWeekScans.length === 0) continue;
+
+    // Build per-repo score diff
+    const lastWeekByRepo = Object.fromEntries(lastWeekScans.map(s => [s.repo, s.score ?? 0]));
+    const rows = thisWeekScans.map(s => {
+      const prev = lastWeekByRepo[s.repo];
+      const diff = prev !== undefined && s.score !== null ? s.score - prev : null;
+      const arrow = diff === null ? '' : diff > 0 ? `▲ +${diff}` : diff < 0 ? `▼ ${diff}` : '→ no change';
+      const color = diff === null ? '#94a3b8' : diff > 0 ? '#4ade80' : diff < 0 ? '#f87171' : '#94a3b8';
+      return `
+        <tr>
+          <td style="padding: 8px 12px; color: #cbd5e1; font-size: 13px;">${s.repo}</td>
+          <td style="padding: 8px 12px; color: #f1f5f9; font-weight: 600; text-align: center;">${s.score ?? '?'}/100 ${s.grade ?? ''}</td>
+          <td style="padding: 8px 12px; color: ${color}; text-align: center; font-size: 12px;">${arrow}</td>
+          <td style="padding: 8px 12px; color: ${s.findings > 0 ? '#f87171' : '#4ade80'}; text-align: center;">${s.findings}</td>
+        </tr>`;
+    }).join('');
+
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; background: #09090b; color: #fafafa; border-radius: 12px; overflow: hidden;">
+        <div style="padding: 24px; border-bottom: 1px solid #27272a;">
+          <h2 style="margin: 0; font-size: 18px;">🛡️ Your weekly security digest</h2>
+          <p style="margin: 6px 0 0; color: #71717a; font-size: 13px;">${thisWeekScans.length} scan${thisWeekScans.length !== 1 ? 's' : ''} this week</p>
+        </div>
+        <div style="padding: 24px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid #27272a;">
+                <th style="padding: 6px 12px; color: #71717a; font-size: 11px; text-align: left;">REPO</th>
+                <th style="padding: 6px 12px; color: #71717a; font-size: 11px; text-align: center;">SCORE</th>
+                <th style="padding: 6px 12px; color: #71717a; font-size: 11px; text-align: center;">CHANGE</th>
+                <th style="padding: 6px 12px; color: #71717a; font-size: 11px; text-align: center;">FINDINGS</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="padding: 16px 24px; border-top: 1px solid #27272a; text-align: center;">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.shipsafecli.com'}/app" style="display: inline-block; background: #0ea5e9; color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">View dashboard</a>
+        </div>
+      </div>`;
+
+    await sendEmail(user.email, '🛡️ Your Ship Safe weekly digest', html);
+  }
+}

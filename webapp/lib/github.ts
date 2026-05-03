@@ -91,3 +91,51 @@ export async function getGitHubClient(repo: string, userId?: string): Promise<Gi
       fetch(`https://api.github.com${path}`, { ...init, headers: { ...headers, ...init?.headers } }),
   };
 }
+
+// ── PR Comment ──────────────────────────────────────────────
+
+export async function postPRComment(
+  repo: string,
+  prNumber: number,
+  score: number | null,
+  grade: string | null,
+  findings: number,
+  secrets: number,
+  vulns: number,
+  scanId: string,
+  userId: string,
+) {
+  let client: GitHubClient;
+  try {
+    client = await getGitHubClient(repo, userId);
+  } catch {
+    return; // No GitHub auth — skip silently
+  }
+
+  const gradeEmoji = (grade ?? 'F') <= 'B' ? '✅' : (grade ?? 'F') <= 'C' ? '⚠️' : '🚨';
+  const scoreColor = (score ?? 0) >= 80 ? '🟢' : (score ?? 0) >= 60 ? '🟡' : '🔴';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.shipsafecli.com';
+
+  const body = [
+    `## ${gradeEmoji} Ship Safe Security Scan`,
+    '',
+    `| | |`,
+    `|---|---|`,
+    `| **Score** | ${scoreColor} ${score ?? '?'}/100 (${grade ?? 'F'}) |`,
+    `| **Findings** | ${findings} |`,
+    `| **Secrets** | ${secrets > 0 ? `🔴 ${secrets}` : '✅ 0'} |`,
+    `| **Vulns** | ${vulns > 0 ? `🔴 ${vulns}` : '✅ 0'} |`,
+    '',
+    findings > 0
+      ? `> ⚠️ This PR introduced or contains security findings. [View full report](${appUrl}/app/scans/${scanId})`
+      : `> ✅ No security issues found. [View full report](${appUrl}/app/scans/${scanId})`,
+    '',
+    `<sub>Scanned by [Ship Safe](https://www.shipsafecli.com) · [Dismiss](${appUrl}/app/scans/${scanId})</sub>`,
+  ].join('\n');
+
+  const [owner, repoName] = repo.split('/');
+  await client.fetch(`/repos/${owner}/${repoName}/issues/${prNumber}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  }).catch(console.error);
+}

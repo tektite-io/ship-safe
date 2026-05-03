@@ -25,6 +25,10 @@ export default async function Dashboard() {
   const freeLimit = parseInt(process.env.FREE_SCAN_LIMIT ?? '3', 10);
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
+  // Redirect brand-new users to onboarding
+  const everScanned = await prisma.scan.count({ where: { userId }, take: 1 });
+  if (everScanned === 0) redirect('/app/onboarding');
+
   const [
     recentScans, totalScans, scansThisMonth, aggFindings, monitoredRepoCount, notification, orgMembership,
     liveAgents, openFindingCounts, recentAgentFindings,

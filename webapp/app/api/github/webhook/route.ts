@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { postPRComment } from '@/lib/github';
 import crypto from 'crypto';
 
 const GITHUB_APP_WEBHOOK_SECRET = process.env.GITHUB_APP_WEBHOOK_SECRET || '';
@@ -241,6 +242,12 @@ async function triggerScan(scanId: string, userId: string, repo: string, branch:
     });
 
     await notifyScanComplete({ ...updated, userId });
+
+    // Post PR comment if this was triggered by a pull request
+    if (updated.prNumber && !updated.prCommented) {
+      await postPRComment(repo, updated.prNumber, score, grade, findings, secrets, vulns, scanId, userId);
+      await prisma.scan.update({ where: { id: scanId }, data: { prCommented: true } });
+    }
 
     // If this was a PR scan with findings, trigger Guardian pipeline
     if (updated.prNumber && updated.findings > 0) {

@@ -476,3 +476,18 @@ model AuditLog {
   @@index([orgId, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
 }
+
+// ── Shared Reports (CLI share command) ──────────────────
+
+model SharedReport {
+  token     String   @id @default(cuid())
+  score     Int?
+  grade     String?
+  repo      String?
+  findings  Int      @default(0)
+  report    Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}

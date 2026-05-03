@@ -499,6 +499,18 @@ export async function auditCommand(targetPath = '.', options = {}) {
       printComparison(scoringEngine, absolutePath, scoreResult);
     }
 
+    // ── Upgrade prompt ────────────────────────────────────────────────────
+    const criticalCount = filteredFindings.filter(f => f.severity === 'critical').length;
+    const highCount     = filteredFindings.filter(f => f.severity === 'high').length;
+    const fixable       = criticalCount + highCount;
+    if (fixable > 0 && scoreResult.score < 80) {
+      console.log();
+      console.log(chalk.yellow('  ┌─────────────────────────────────────────────────────────┐'));
+      console.log(chalk.yellow('  │') + chalk.white.bold(`  ${fixable} critical/high finding${fixable === 1 ? '' : 's'} — fix them automatically`) + chalk.yellow('        │'));
+      console.log(chalk.yellow('  │') + chalk.cyan('  npx ship-safe agent .') + chalk.gray('  ·  ') + chalk.cyan('shipsafecli.com/pricing') + chalk.yellow('     │'));
+      console.log(chalk.yellow('  └─────────────────────────────────────────────────────────┘'));
+    }
+
     console.log();
     console.log(chalk.cyan('═'.repeat(60)));
     console.log();

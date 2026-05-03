@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { fireAgentRun } from '@/lib/fire-agent-run';
 import { Cron } from 'croner';
 import { Prisma } from '@prisma/client';
-import { notifyScanComplete, notifyScanFailed } from '@/lib/notifications';
+import { notifyScanComplete, notifyScanFailed, sendWeeklyDigests } from '@/lib/notifications';
 import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -161,6 +161,15 @@ export async function GET(req: NextRequest) {
     where: { status: 'running', startedAt: { lt: stuckCutoff } },
     data:  { status: 'error', completedAt: now },
   });
+
+  // ── Weekly digest (every Monday 08:00 UTC) ───────────────────────────────────
+  const isMonday8am = now.getUTCDay() === 1 && now.getUTCHours() === 8 && now.getUTCMinutes() < 2;
+  if (isMonday8am) {
+    sendWeeklyDigests().catch(console.error);
+  }
+
+  // ── Expired shared reports cleanup ───────────────────────────────────────────
+  await prisma.sharedReport.deleteMany({ where: { expiresAt: { lt: now } } });
 
   return NextResponse.json({ fired, count: fired.length, scannedRepos, stuckTeamRunsCleaned: stuckResult.count, at: now.toISOString() });
 }

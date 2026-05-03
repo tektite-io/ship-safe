@@ -1,0 +1,27 @@
+# Example: add this to YOUR repo at .github/workflows/security.yml
+# Full docs: https://shipsafecli.com/docs
+
+name: Security Scan
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ship Safe Security Scan
+        uses: asamassekou10/ship-safe/.github/actions/scan@main
+        with:
+          threshold: 70          # fail if score drops below 70
+          fail-on-secrets: true
+          sarif: results.sarif   # upload to GitHub Security tab
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
