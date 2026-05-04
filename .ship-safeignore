@@ -44,3 +44,7 @@ marketing/
 # Blog post content — TypeScript data file containing example credentials,
 # code snippets, and connection strings used in blog post copy. Not real credentials.
 webapp/data/blog.ts
+
+# The webapp is a Next.js app deployed on Vercel and audited by its own pipeline.
+# Excluding it from the CLI self-scan keeps CI focused on the CLI package itself.
+webapp/
