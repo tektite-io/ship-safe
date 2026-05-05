@@ -25,6 +25,8 @@ model User {
   notifications NotificationSetting?
   agents        Agent[]
   agentTeams    AgentTeam[]
+  contentAgentRuns ContentAgentRun[]
+  contentDrafts ContentDraft[]
   llmSettings   Json?     // { provider, model, think, apiKeys: { DEEPSEEK_API_KEY, OPENAI_API_KEY, ... } }
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -490,4 +492,54 @@ model SharedReport {
   createdAt DateTime @default(now())
 
   @@index([expiresAt])
+}
+
+// ── Content Agent ───────────────────────────────────────
+
+model ContentAgentRun {
+  id             String         @id @default(cuid())
+  userId         String?
+  mode           String         @default("draft") // draft | publish
+  status         String         @default("running") // running | skipped | drafted | published | error
+  config         Json?
+  selectedTopic  Json?
+  candidateCount Int            @default(0)
+  selectedCount  Int            @default(0)
+  sourceCount    Int            @default(0)
+  guardrails     Json           @default("[]")
+  error          String?        @db.Text
+  draftId        String?
+  user           User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  draft          ContentDraft?  @relation(fields: [draftId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  completedAt    DateTime?
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model ContentDraft {
+  id             String            @id @default(cuid())
+  userId         String?
+  slug           String            @unique
+  title          String
+  description    String            @db.Text
+  author         String
+  tags           Json              @default("[]")
+  keywords       Json              @default("[]")
+  content        String            @db.Text
+  coverImage     String?
+  status         String            @default("draft") // draft | approved | published | rejected
+  sourceTopic    Json?
+  citations      Json              @default("[]")
+  guardrails     Json              @default("[]")
+  publishedUrl   String?
+  publishedAt    DateTime?
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  runs           ContentAgentRun[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
 }

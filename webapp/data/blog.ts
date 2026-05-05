@@ -1,3 +1,5 @@
+import generatedPosts from './generated-blog-posts.json';
+
 export interface BlogPost {
   slug: string;
   title: string;
@@ -10,7 +12,7 @@ export interface BlogPost {
   coverImage?: string;
 }
 
-export const posts: BlogPost[] = [
+const manualPosts: BlogPost[] = [
   {
     slug: 'vercel-april-2026-ai-integration-supply-chain-attack',
     title: 'The Vercel April 2026 Incident: How a Compromised AI Integration Became a Supply Chain Attack',
@@ -2123,10 +2125,15 @@ See the [GitHub README](https://github.com/asamassekou10/ship-safe) for the full
   },
 ];
 
+const generatedBlogPosts = generatedPosts as BlogPost[];
+const allPosts = [...generatedBlogPosts, ...manualPosts].sort((a, b) => b.date.localeCompare(a.date));
+
+export const posts: BlogPost[] = allPosts;
+
 export function getPostBySlug(slug: string): BlogPost | undefined {
-  return posts.find((p) => p.slug === slug);
+  return allPosts.find((p) => p.slug === slug);
 }
 
 export function getAllSlugs(): string[] {
-  return posts.map((p) => p.slug);
+  return allPosts.map((p) => p.slug);
 }

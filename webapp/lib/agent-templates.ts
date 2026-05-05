@@ -11,6 +11,16 @@ export interface AgentTemplate {
 
 const TEMPLATES: AgentTemplate[] = [
   {
+    id:          'content-research',
+    name:        'Content Research Agent',
+    description: 'Researches recent security news, checks sources, and drafts cited blog posts for Ship Safe review.',
+    icon:        '📝',
+    tools:       ['web_search', 'browser', 'read_file'],
+    memoryProvider: 'builtin',
+    maxDepth:    2,
+    promptHint:  'Trigger with: "Research this topic and return a cited blog draft as JSON."',
+  },
+  {
     id:          'dependency-auditor',
     name:        'Dependency Auditor',
     description: 'Scans package.json / requirements.txt for known CVEs and outdated packages. Run on a schedule or on push.',

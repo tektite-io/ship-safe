@@ -9,6 +9,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import * as tar from 'tar';
 import { auditCommand } from 'ship-safe';
+import { runContentAgent } from '@/lib/content-agent';
 
 /**
  * GET /api/cron
@@ -168,10 +169,28 @@ export async function GET(req: NextRequest) {
     sendWeeklyDigests(now.getUTCDay() === 1 ? 'weekly' : 'daily').catch(console.error);
   }
 
+  let contentAgent: { status: string; slug?: string } | undefined;
+  const shouldRunContentAgent =
+    process.env.CONTENT_AGENT_CRON_ENABLED === 'true' &&
+    now.getUTCHours() === 9 &&
+    now.getUTCMinutes() < 2;
+
+  if (shouldRunContentAgent) {
+    try {
+      const result = await runContentAgent({
+        mode: process.env.CONTENT_AGENT_ALLOW_AUTOPUBLISH === 'true' ? 'publish' : 'draft',
+      });
+      contentAgent = { status: result.status, slug: result.post?.slug };
+    } catch (error) {
+      console.error('[content-agent] cron run failed', error);
+      contentAgent = { status: 'error' };
+    }
+  }
+
   // ── Expired shared reports cleanup ───────────────────────────────────────────
   await prisma.sharedReport.deleteMany({ where: { expiresAt: { lt: now } } });
 
-  return NextResponse.json({ fired, count: fired.length, scannedRepos, stuckTeamRunsCleaned: stuckResult.count, at: now.toISOString() });
+  return NextResponse.json({ fired, count: fired.length, scannedRepos, stuckTeamRunsCleaned: stuckResult.count, contentAgent, at: now.toISOString() });
 }
 
 // ── Scheduled repo scan runner ────────────────────────────────────────────────

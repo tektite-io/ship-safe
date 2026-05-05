@@ -57,8 +57,12 @@ export async function getGitHubClient(repo: string, userId?: string): Promise<Gi
   const [owner] = repo.split('/');
   let token = '';
 
+  if (process.env.CONTENT_AGENT_GITHUB_TOKEN) {
+    token = process.env.CONTENT_AGENT_GITHUB_TOKEN;
+  }
+
   // Try GitHub App installation first
-  if (APP_ID && PRIVATE_KEY) {
+  if (!token && APP_ID && PRIVATE_KEY) {
     const installation = await prisma.gitHubInstallation.findFirst({
       where: { accountLogin: owner },
     });
