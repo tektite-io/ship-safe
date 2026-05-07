@@ -80,7 +80,7 @@ export default function IntelScrolly() {
           <div className={styles.media}>
             <div className={styles.mediaFrame}>
               <LazyVideo
-                src="/demo%20app%20intelligence.mov"
+                src="/demo%20ship-safe%20intelligence.mp4"
                 poster="/app%20intelligence.png"
                 className={styles.video}
                 ariaLabel="Ship Safe Security Intelligence demo"
