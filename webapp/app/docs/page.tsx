@@ -70,7 +70,7 @@ export default function Docs() {
 
           <article className={styles.content}>
             <header className={styles.header}>
-              <span className="section-label">Documentation</span>
+              <span className={styles.sectionLabel}>// docs</span>
               <h1>Ship Safe CLI</h1>
               <p className={styles.subtitle}>
                 23 AI security agents. 80+ attack classes. One command.

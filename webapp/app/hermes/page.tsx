@@ -1,6 +1,9 @@
 import Nav from '@/components/Nav';
 import Link from 'next/link';
 import VideoEmbed from '@/components/VideoEmbed';
+import CursorGlow from '@/components/CursorGlow';
+import MagneticButton from '@/components/MagneticButton';
+import ScrollAnimator from '@/components/ScrollAnimator';
 import styles from './hermes.module.css';
 import type { Metadata } from 'next';
 
@@ -29,44 +32,80 @@ export const metadata: Metadata = {
   },
 };
 
+const STEPS = [
+  { n: '1', title: 'Answer 4 questions',  desc: 'Project name, your registered tools (from tools/registry.py), which memory provider you use, and whether you use delegate_task. Takes under a minute.' },
+  { n: '2', title: 'Get your setup command', desc: 'Ship Safe generates a one-time command. Nothing is uploaded — the config is encoded in the URL itself.' },
+  { n: '3', title: 'Run one command',    desc: 'npx ship-safe init --hermes --from <url> writes all files, generates integrity hashes, and runs your first audit.' },
+  { n: '4', title: 'CI guards every PR', desc: 'The generated workflow posts a security score on every pull request and fails if your score drops below baseline.' },
+];
+
+const FILES = [
+  { path: 'agent-manifest.json',                 desc: 'Ship Safe security manifest — tool allowlist, integrity hashes, MAX_DEPTH enforcement. Complements your ~/.hermes/config.yaml.', color: 'cyan' },
+  { path: '.ship-safe/agents/hermes-policy.js',  desc: 'Custom security agent — enforces your allowlist and runs on every ship-safe audit automatically.', color: 'green' },
+  { path: '.ship-safe/hermes-baseline.json',     desc: 'Baseline score. CI fails any PR that drops below it.', color: 'yellow' },
+  { path: '.github/workflows/ship-safe-hermes.yml', desc: 'GitHub Actions workflow — audits on every PR and posts a score comment.', color: 'cyan' },
+];
+
+const THREATS = [
+  {
+    accent: 'red',
+    rule: 'HERMES_TOOL_NO_INTEGRITY',
+    title: 'Tool registry poisoning',
+    body: 'Hermes loads tools via registry.register() at import time. A compromised dependency or malicious MCP tool can register under a trusted name. Without integrity checks, your agent calls it without question.',
+  },
+  {
+    accent: 'yellow',
+    rule: 'HERMES_FUNCTION_CALL_NO_ALLOWLIST',
+    title: 'Function-call injection',
+    body: 'A prompt injection tricks your agent into calling registry.dispatch() with an attacker-chosen tool name. Hermes has 30+ registered tools — without an allowlist check, any of them can be invoked.',
+  },
+  {
+    accent: 'cyan',
+    rule: 'HERMES_MEMORY_INJECTION',
+    title: 'Memory poisoning',
+    body: 'Hermes injects MEMORY.md and USER.md into the system prompt at session start. Poisoned entries — via prompt injection patterns or invisible unicode — can hijack the agent’s behavior across all future sessions.',
+  },
+];
+
 export default function HermesPage() {
   return (
     <>
+      <ScrollAnimator />
       <Nav />
-      <main className={styles.main}>
-
-        {/* ── Hero ── */}
+      <main className={styles.page}>
+        {/* ── Hero ──────────────────────────────────── */}
         <section className={styles.hero}>
-          <>
-            <div className={styles.heroBadge}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              22 Hermes security agents
-            </div>
-            <h1 className={styles.heroTitle}>
-              Secure your Hermes agent<br />
-              <span className={styles.heroAccent}>before it ships.</span>
+          <div className={styles.heroInner}>
+            <span className={styles.statusPill}>
+              <i /> 23 Hermes security agents
+            </span>
+            <h1>
+              Secure your Hermes agent <span className={styles.gradientText}>before it ships.</span>
             </h1>
-            <p className={styles.heroSub}>
+            <p>
               Hermes agents are powerful — and exposed to three attack classes your code won&apos;t catch on its own.
               Answer 4 questions and get a hardened config bundle dropped straight into your project.
             </p>
             <div className={styles.heroCommand}>
+              <span>$</span>
               <code>npx ship-safe init --hermes --from shipsafecli.com/s/&lt;token&gt;</code>
             </div>
-            <div className={styles.heroActions}>
-              <Link href="/signup" className="btn btn-primary">
-                Secure my agent →
-              </Link>
-              <Link href="/blog/hermes-agent-security-tool-registry-poisoning-function-call-injection" className={styles.heroLearn}>
+            <div className={styles.actions}>
+              <MagneticButton>
+                <Link href="/signup" className={styles.primaryCta}>
+                  Secure my agent <span aria-hidden="true">→</span>
+                </Link>
+              </MagneticButton>
+              <Link href="/blog/hermes-agent-security-tool-registry-poisoning-function-call-injection" className={styles.secondaryCta}>
                 Read the threat breakdown
               </Link>
             </div>
-          </>
+          </div>
         </section>
 
-        {/* ── Deploy video ── */}
-        <section className={styles.section} style={{ paddingTop: '2rem' }}>
-          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        {/* ── Deploy video ──────────────────────────── */}
+        <section className={styles.videoSection}>
+          <div className={styles.videoFrame} data-animate>
             <VideoEmbed
               videoId="nGH1chUHzKQ"
               title="Deploy Hermes agents in a few seconds - Ship Safe"
@@ -76,27 +115,29 @@ export default function HermesPage() {
           </div>
         </section>
 
-        {/* ── What is Hermes? ── */}
+        {/* ── New to Hermes? (split) ────────────────── */}
         <section className={styles.section}>
-          <>
-            <div className={styles.explainer}>
-              <div className={styles.explainerText}>
-                <h2>New to Hermes?</h2>
-                <p>
-                  <strong>Hermes</strong> is an open-source agent framework by <strong>Nous Research</strong> with 30+ toolsets
-                  (<code>web_search</code>, <code>terminal</code>, <code>browser_navigate</code>, <code>delegate_task</code>, and more),
-                  pluggable memory providers (built-in MEMORY.md/USER.md, Honcho, Mem0),
-                  and subagent delegation via <code>delegate_task</code>.
-                </p>
-                <p>
-                  Every tool dispatch through <code>registry.dispatch()</code>, every memory write to
-                  MEMORY.md, and every subagent spawn is an attack surface. Ship Safe audits all three —
-                  automatically, on every PR.
-                </p>
+          <div className={styles.explainer}>
+            <div className={styles.explainerCopy} data-animate="left">
+              <span className={styles.sectionLabel}>// 01 — context</span>
+              <h2>New to Hermes?</h2>
+              <p>
+                <strong>Hermes</strong> is an open-source agent framework by <strong>Nous Research</strong> with 30+ toolsets
+                {' '}(<code>web_search</code>, <code>terminal</code>, <code>browser_navigate</code>, <code>delegate_task</code>, and more),
+                pluggable memory providers (built-in MEMORY.md/USER.md, Honcho, Mem0), and subagent delegation via <code>delegate_task</code>.
+              </p>
+              <p>
+                Every tool dispatch through <code>registry.dispatch()</code>, every memory write to MEMORY.md,
+                and every subagent spawn is an attack surface. Ship Safe audits all three — automatically, on every PR.
+              </p>
+            </div>
+            <div className={styles.explainerCode} data-animate="right">
+              <div className={styles.codeChrome}>
+                <span /><span /><span />
+                <strong>agent-manifest.json</strong>
               </div>
-              <div className={styles.explainerCode}>
-                <div className={styles.codeFile}>agent-manifest.json (Ship Safe security manifest)</div>
-                <pre className={styles.codePre}>{`{
+              <pre className={styles.codeBody}>
+                <code>{`{
   "tools": [
     { "name": "web_search",
       "integrity": "sha256-abc..." },
@@ -108,165 +149,107 @@ export default function HermesPage() {
     "requireIntegrity": true,
     "maxRecursionDepth": 2
   }
-}`}</pre>
-              </div>
+}`}</code>
+              </pre>
             </div>
-          </>
+          </div>
         </section>
 
-        {/* ── 3 Attack Classes ── */}
+        {/* ── 3 attack classes ──────────────────────── */}
         <section className={styles.section}>
-          <>
-            <div className={styles.sectionHeader}>
-              <h2>Three attacks your agent is exposed to right now</h2>
-              <p>These don&apos;t require a breach. They exploit the trust your agent places in its own tools, inputs, and memory.</p>
-            </div>
-            <div className={styles.threatGrid}>
-              <div className={styles.threatCard}>
-                <div className={`${styles.threatIcon} ${styles.red}`}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                </div>
-                <h3>Tool registry poisoning</h3>
-                <p>
-                  Hermes loads tools via <code>registry.register()</code> at import time. A compromised dependency or
-                  malicious MCP tool can register under a trusted name. Without integrity checks, your agent calls it without question.
-                </p>
-                <div className={styles.threatRule}>
-                  <span className={styles.ruleTag}>HERMES_TOOL_NO_INTEGRITY</span>
-                  Detected by Ship Safe
-                </div>
-              </div>
+          <div className={styles.sectionHeader} data-animate>
+            <span className={styles.sectionLabel}>// 02 — threats</span>
+            <h2>Three attacks your agent is exposed to right now.</h2>
+            <p>These don&apos;t require a breach. They exploit the trust your agent places in its own tools, inputs, and memory.</p>
+          </div>
 
-              <div className={styles.threatCard}>
-                <div className={`${styles.threatIcon} ${styles.yellow}`}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14.5 2v6.5L18 12l-3.5 3.5V22"/><path d="M9.5 2v6.5L6 12l3.5 3.5V22"/></svg>
-                </div>
-                <h3>Function-call injection</h3>
-                <p>
-                  A prompt injection tricks your agent into calling <code>registry.dispatch()</code> with an attacker-chosen tool name.
-                  Hermes has 30+ registered tools — without an allowlist check, any of them can be invoked.
-                </p>
-                <div className={styles.threatRule}>
-                  <span className={styles.ruleTag}>HERMES_FUNCTION_CALL_NO_ALLOWLIST</span>
-                  Detected by Ship Safe
-                </div>
-              </div>
-
-              <div className={styles.threatCard}>
-                <div className={`${styles.threatIcon} ${styles.cyan}`}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                </div>
-                <h3>Memory poisoning</h3>
-                <p>
-                  Hermes injects MEMORY.md and USER.md into the system prompt at session start.
-                  Poisoned entries — via prompt injection patterns or invisible unicode — can hijack the agent&apos;s behavior across all future sessions.
-                </p>
-                <div className={styles.threatRule}>
-                  <span className={styles.ruleTag}>HERMES_MEMORY_INJECTION</span>
-                  Detected by Ship Safe
-                </div>
-              </div>
-            </div>
-          </>
+          <CursorGlow className={styles.threatGrid}>
+            {THREATS.map((t, i) => (
+              <article
+                key={t.rule}
+                data-glow
+                data-animate
+                data-delay={String(i * 70)}
+                className={`${styles.threatCard} ${styles[`accent_${t.accent}`]}`}
+              >
+                <span className={styles.threatTag}>{t.rule}</span>
+                <h3>{t.title}</h3>
+                <p>{t.body}</p>
+                <span className={styles.threatFoot}>Detected by Ship Safe</span>
+              </article>
+            ))}
+          </CursorGlow>
         </section>
 
-        {/* ── How it works ── */}
+        {/* ── How it works ──────────────────────────── */}
         <section className={styles.section}>
-          <>
-            <div className={styles.sectionHeader}>
-              <h2>From zero to hardened in one command</h2>
-              <p>No code uploaded. No config files to learn. Just answers to 4 questions.</p>
-            </div>
-            <div className={styles.stepsRow}>
-              {[
-                {
-                  n: '1',
-                  title: 'Answer 4 questions',
-                  desc: 'Project name, your registered tools (from tools/registry.py), which memory provider you use, and whether you use delegate_task. Takes under a minute.',
-                },
-                {
-                  n: '2',
-                  title: 'Get your setup command',
-                  desc: 'Ship Safe generates a one-time command. Nothing is uploaded — the config is encoded in the URL itself.',
-                },
-                {
-                  n: '3',
-                  title: 'Run one command',
-                  desc: 'npx ship-safe init --hermes --from <url> writes all files, generates integrity hashes, and runs your first audit.',
-                },
-                {
-                  n: '4',
-                  title: 'CI guards every PR',
-                  desc: 'The generated workflow posts a security score on every pull request and fails if your score drops below baseline.',
-                },
-              ].map(s => (
-                <div key={s.n} className={styles.stepCard}>
-                  <div className={styles.stepNum}>{s.n}</div>
-                  <h3>{s.title}</h3>
-                  <p>{s.desc}</p>
-                </div>
-              ))}
-            </div>
-          </>
+          <div className={styles.sectionHeader} data-animate>
+            <span className={styles.sectionLabel}>// 03 — flow</span>
+            <h2>From zero to hardened in one command.</h2>
+            <p>No code uploaded. No config files to learn. Just answers to 4 questions.</p>
+          </div>
+
+          <CursorGlow className={styles.stepsRow}>
+            {STEPS.map((s, i) => (
+              <div
+                key={s.n}
+                data-glow
+                data-animate
+                data-delay={String(i * 60)}
+                className={styles.stepCard}
+              >
+                <span className={styles.stepNum}>{s.n}</span>
+                <h3>{s.title}</h3>
+                <p>{s.desc}</p>
+              </div>
+            ))}
+          </CursorGlow>
         </section>
 
-        {/* ── What you get ── */}
+        {/* ── What gets generated ───────────────────── */}
         <section className={styles.section}>
-          <>
-            <div className={styles.sectionHeader}>
-              <h2>What gets generated</h2>
-              <p>Everything drops into your project at the correct paths. No manual placement.</p>
-            </div>
-            <div className={styles.fileGrid}>
-              {[
-                {
-                  path: 'agent-manifest.json',
-                  desc: 'Ship Safe security manifest — tool allowlist, integrity hashes, MAX_DEPTH enforcement. Complements your ~/.hermes/config.yaml.',
-                  color: 'cyan',
-                },
-                {
-                  path: '.ship-safe/agents/hermes-policy.js',
-                  desc: 'Custom security agent — enforces your allowlist and runs on every ship-safe audit automatically.',
-                  color: 'green',
-                },
-                {
-                  path: '.ship-safe/hermes-baseline.json',
-                  desc: 'Baseline score. CI fails any PR that drops below it.',
-                  color: 'yellow',
-                },
-                {
-                  path: '.github/workflows/ship-safe-hermes.yml',
-                  desc: 'GitHub Actions workflow — audits on every PR and posts a score comment.',
-                  color: 'cyan',
-                },
-              ].map(f => (
-                <div key={f.path} className={styles.fileCard}>
-                  <div className={`${styles.fileBar} ${styles[f.color]}`} />
-                  <div className={styles.fileCardInner}>
-                    <code className={styles.filePath}>{f.path}</code>
-                    <p className={styles.fileDesc}>{f.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+          <div className={styles.sectionHeader} data-animate>
+            <span className={styles.sectionLabel}>// 04 — output</span>
+            <h2>What gets generated.</h2>
+            <p>Everything drops into your project at the correct paths. No manual placement.</p>
+          </div>
+
+          <CursorGlow className={styles.fileGrid}>
+            {FILES.map((f, i) => (
+              <div
+                key={f.path}
+                data-glow
+                data-animate
+                data-delay={String(i * 60)}
+                className={`${styles.fileCard} ${styles[`accent_${f.color}`]}`}
+              >
+                <code className={styles.filePath}>{f.path}</code>
+                <p>{f.desc}</p>
+              </div>
+            ))}
+          </CursorGlow>
         </section>
 
-        {/* ── CTA ── */}
-        <section className={styles.ctaSection}>
-          <>
+        {/* ── Final CTA ─────────────────────────────── */}
+        <section className={styles.finalCta}>
+          <div className={styles.finalBg} aria-hidden="true">
+            <div className={styles.mesh} />
+          </div>
+          <div className={styles.finalInner}>
+            <span className={styles.statusPill}><i /> Free for the first scan</span>
             <h2>Ready to harden your agent?</h2>
-            <p>Free for the first scan. No credit card required.</p>
-            <Link href="/signup" className="btn btn-primary">
-              Get started free →
-            </Link>
-            <div className={styles.ctaNote}>
-              Already have an account?{' '}
-              <Link href="/app/deploy">Go to the deploy wizard →</Link>
+            <div className={styles.actions}>
+              <MagneticButton>
+                <Link href="/signup" className={styles.primaryCta}>
+                  Get started free <span aria-hidden="true">→</span>
+                </Link>
+              </MagneticButton>
+              <Link href="/app/deploy" className={styles.secondaryCta}>
+                Already signed in? Open the deploy wizard
+              </Link>
             </div>
-          </>
+          </div>
         </section>
-
       </main>
     </>
   );
