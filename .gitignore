@@ -274,3 +274,7 @@ CONTEXT.md
 !webapp/**/*.html
 !webapp/public/**
 !.github/assets/*.gif
+
+# Re-ignore OS junk that the wildcard above un-ignored
+webapp/public/.DS_Store
+**/.DS_Store
